@@ -1,0 +1,12 @@
+* Conda Packaging
+https://groups.google.com/a/continuum.io/forum/?fromgroups#!searchin/anaconda/brannon
+conda config --add binstar_upload True
+** PyPI deps
+https://groups.google.com/a/continuum.io/forum/?fromgroups#!searchin/anaconda/brannon/anaconda/IhSVhAE9DBk/fBC7z-Tr7BAJ
+You need to pass the full path to an actual package file to binstar --- not the recipe directory.
+
+First build the package.  Then upload the built package to binstar.
+** Contributing a package to Conda
+https://groups.google.com/a/continuum.io/forum/?fromgroups#!searchin/anaconda/brannon/anaconda/9puvxSxtOIY/2yT0SC0941gJ
+** version
+setup.py and meta.yaml
