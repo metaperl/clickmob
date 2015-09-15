@@ -11,11 +11,11 @@ import pprint
 import random
 import sys
 import time
+import urllib
+
 
 # pypi
 import argh
-from captcha_solver import CaptchaSolver
-
 
 from clint.textui import progress
 import funcy
@@ -30,6 +30,8 @@ import selenium.webdriver.support.ui as ui
 
 # local
 import conf  # it is used. Even though flymake cant figure that out.
+import smallcrop
+
 
 logging.basicConfig(
     format='%(lineno)s %(message)s',
@@ -78,8 +80,8 @@ def page_source(browser):
 
 def wait_visible(driver, locator, by=By.XPATH, timeout=30):
     try:
-        return ui.WebDriverWait(driver, timeout).until(
-            EC.visibility_of_element_located((by, locator)))
+        if ui.WebDriverWait(driver, timeout).until(EC.visibility_of_element_located((by, locator))):
+            return driver.find_element(by, locator)
     except TimeoutException:
         return False
 
@@ -137,13 +139,16 @@ def echo_print(text, elem):
 
 
 def element_screenshot(driver, element, filename):
-    element = element._element
+    t = type(element).__name__
+    echo_print('type of element', t)
+    if t == 'WebDriverElement': element = element._element
     bounding_box = (
         element.location['x'],  # left
         element.location['y'],  # upper
         (element.location['x'] + element.size['width']),  # right
         (element.location['y'] + element.size['height'])  # bottom
     )
+    echo_print('Bounding Box', bounding_box)
     return bounding_box_screenshot(driver, bounding_box, filename)
 
 
@@ -231,6 +236,17 @@ class Entry(object):
         logging.warn("Visiting viewads")
         self.browser_visit('viewads')
         time.sleep(random.randrange(2, 5))
+
+        image_to_match_elem = wait_visible(self.browser.driver, '//*[@id="view"]/table/tbody/tr/td[1]/img')
+        candidate_images_elem = self.browser.find_by_xpath('//*[@id="view"]/table/tbody/tr/td[3]/img').first
+
+        element_screenshot(self.browser.driver, image_to_match_elem, 'image_to_match.gif')
+        element_screenshot(self.browser.driver, candidate_images_elem, 'candidate_images.gif')
+
+        filenames = smallcrop.horizontal_sections('candidate_images.gif', 4)
+        echo_print('filenames', filenames)
+        # urllib.urlretrieve(image_to_match_elem.__getattribute__('src'), 'image_to_match.gif')
+        # urllib.urlretrieve(candidate_images_elem.__getattribute__('src'), 'candidate_images_elem.gif')
 
         loop_forever()
 
