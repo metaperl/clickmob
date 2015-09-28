@@ -12,6 +12,7 @@ import random
 import sys
 import time
 import urllib
+import ConfigParser
 
 
 # pypi
@@ -21,6 +22,8 @@ from clint.textui import progress
 import funcy
 from PIL import Image
 from splinter import Browser
+from selenium import webdriver
+from selenium.webdriver.common.action_chains import ActionChains
 from selenium.common.exceptions import \
     TimeoutException, UnexpectedAlertPresentException, WebDriverException
 from selenium.webdriver.common.by import By
@@ -30,8 +33,8 @@ import selenium.webdriver.support.ui as ui
 
 # local
 import conf  # it is used. Even though flymake cant figure that out.
+import match_image4
 import smallcrop
-
 
 logging.basicConfig(
     format='%(lineno)s %(message)s',
@@ -73,12 +76,24 @@ def clear_input_box(box):
     return box
 
 
+# http://stackoverflow.com/questions/16807258/selenium-click-at-certain-position
+def click_element_with_offset(driver, elem, x, y):
+    action = ActionChains(driver)
+    echo_print("Moving to x position", x)
+    echo_print("Moving to y position", y)
+    action.move_to_element_with_offset(elem, x, y)
+    print("OK now see where the mouse is...")
+    action.click()
+    action.perform()
+
+
+
 def page_source(browser):
     document_root = browser.driver.page_source
     return document_root
 
 
-def wait_visible(driver, locator, by=By.XPATH, timeout=30):
+def wait_visible(driver, locator, by=By.XPATH, timeout=300):
     try:
         if ui.WebDriverWait(driver, timeout).until(EC.visibility_of_element_located((by, locator))):
             return driver.find_element(by, locator)
@@ -135,6 +150,7 @@ def get_element_html(driver, elem):
 def echo_print(text, elem):
     print("{0}={1}.".format(text, elem))
 
+
 # https://stackoverflow.com/questions/10848900/how-to-take-partial-screenshot-frame-with-selenium-webdriver/26225137#26225137?newreg=8807b51813c4419abbb37ab2fe696b1a
 
 
@@ -148,6 +164,7 @@ def element_screenshot(driver, element, filename):
         (element.location['x'] + element.size['width']),  # right
         (element.location['y'] + element.size['height'])  # bottom
     )
+    bounding_box = map(int, bounding_box)
     echo_print('Bounding Box', bounding_box)
     return bounding_box_screenshot(driver, bounding_box, filename)
 
@@ -156,26 +173,18 @@ def bounding_box_screenshot(driver, bounding_box, filename):
     driver.save_screenshot(filename)
     base_image = Image.open(filename)
     cropped_image = base_image.crop(bounding_box)
-    base_image = base_image.resize(cropped_image.size)
+    base_image = base_image.resize(
+        [int(i) for i in cropped_image.size])
     base_image.paste(cropped_image, (0, 0))
     base_image.save(filename)
     return base_image
 
 
 class Entry(object):
-    def __init__(
-            self, loginas, browser, surf_amount, buy_pack
-    ):
-        modobj = sys.modules['conf']
-        print(modobj)
-        d = getattr(modobj, loginas)
-
-        self._username = d['username']
-        self._password = d['password']
-        self._pin = d['pin']
+    def __init__(self, username, password, browser):
+        self._username = username
+        self._password = password
         self.browser = browser
-        self._surf_amount = surf_amount
-        self._buy_pack = buy_pack
 
     def login(self):
         print("Logging in...")
@@ -190,9 +199,9 @@ class Entry(object):
         for i in progress.bar(range(wait_time)):
             time.sleep(1)
 
-        captcha_elem = self.browser.find_by_id('captcha').first
-        captcha_file = 'captcha.png'
-        element_screenshot(self.browser.driver, captcha_elem, captcha_file)
+        # captcha_elem = self.browser.find_by_id('captcha').first
+        # captcha_file = 'captcha.png'
+        # element_screenshot(self.browser.driver, captcha_elem, captcha_file)
 
         self.browser.find_by_name('submit').click()
 
@@ -200,7 +209,6 @@ class Entry(object):
         # with open(captcha_file, 'rb') as inp:
         #     raw_data = inp.read()
         # print(solver.solve_captcha(raw_data))
-
 
     def browser_visit(self, action_label):
         try:
@@ -217,8 +225,8 @@ class Entry(object):
             print("Caught webdriver exception.")
             return 253
 
-    def view_ads(self):
-        for i in xrange(1, self._surf_amount + 1):
+    def view_ads(self, surf_amount):
+        for i in xrange(1, surf_amount + 1):
             while True:
                 print("Viewing ad {0}".format(i))
                 result = self.view_ad()
@@ -230,7 +238,6 @@ class Entry(object):
         if self._buy_pack:
             self.buy_pack()
 
-
     @trap_alert
     def view_ad(self):
         logging.warn("Visiting viewads")
@@ -240,24 +247,35 @@ class Entry(object):
         image_to_match_elem = wait_visible(self.browser.driver, '//*[@id="view"]/table/tbody/tr/td[1]/img')
         candidate_images_elem = self.browser.find_by_xpath('//*[@id="view"]/table/tbody/tr/td[3]/img').first
 
-        element_screenshot(self.browser.driver, image_to_match_elem, 'image_to_match.gif')
+        if not all([image_to_match_elem, candidate_images_elem]):
+            raise Exception("All required images not located")
+
+        query_image = 'image_to_match.gif'
+        element_screenshot(self.browser.driver, image_to_match_elem, query_image)
         element_screenshot(self.browser.driver, candidate_images_elem, 'candidate_images.gif')
 
-        filenames = smallcrop.horizontal_sections('candidate_images.gif', 4)
-        echo_print('filenames', filenames)
+        sectioned_image = smallcrop.horizontal_sections('candidate_images.gif', 4)
+        match = match_image4.closest(query_image, sectioned_image['filenames'])
+        echo_print('closest image', match)
+        i = sectioned_image['filenames'].index(match)
+
+        area_elems = self.browser.find_by_xpath("//area")
+        js_to_execute = area_elems[i]['onclick']
+        self.browser.execute_script(js_to_execute)
+
+        # x_offset = sectioned_image['offsets'][i]
+        # candidate_images_elem.click()
+        # click_element_with_offset(self.browser.driver, candidate_images_elem._element, x_offset+3, 3)
+
         # urllib.urlretrieve(image_to_match_elem.__getattribute__('src'), 'image_to_match.gif')
         # urllib.urlretrieve(candidate_images_elem.__getattribute__('src'), 'candidate_images_elem.gif')
 
-        loop_forever()
-
-        return 0
-
+        return True
 
     def wait_on_ad(self):
         time_to_wait_on_ad = random.randrange(40, 50)
         for i in progress.bar(range(time_to_wait_on_ad)):
             time.sleep(1)
-
 
     def buy_pack(self):
         self.calc_account_balance()
@@ -278,7 +296,6 @@ class Entry(object):
         button = wait_visible(self.browser.driver, 'Preview', by=By.NAME)
         button.click()
 
-
     def calc_account_balance(self):
         time.sleep(1)
 
@@ -295,7 +312,6 @@ class Entry(object):
         self.account_balance = float(elem.text[1:])
 
         print("Available Account Balance: {}".format(self.account_balance))
-
 
     def calc_credit_packs(self):
         time.sleep(1)
@@ -329,45 +345,25 @@ class Entry(object):
         button = self.browser.find_by_name('Submit')
         button.click()
 
+def main(conf, surf=False, buy_pack=False, stay_up=False, surf_amount=10):
+    config = ConfigParser.ConfigParser()
+    config.read(conf)
+    username = config.get('login', 'username')
+    password = config.get('login', 'password')
 
-def main(loginas, random_delay=False, surf=False, stayup=False, surf_amount=10,
-        buy_pack=False
-):
-    if random_delay:
-        random_delay = random.randint(1, 15)
-        print("Random delay = {0}".format(random_delay))
-        time.sleep(one_minute * random_delay)
 
     with Browser() as browser:
-
         browser.driver.set_window_size(1200, 1100)
-
-        e = Entry(loginas, browser, surf_amount, buy_pack)
+        e = Entry(username, password, browser)
 
         e.login()
 
         if surf:
-            e.view_ads()
-        if action == 'time':
-            e.time_macro()
-        if action == 'buy':
+            e.view_ads(surf_amount)
+        if buy_pack:
             e.buy_pack()
-        if action == 'withdraw':
-            e.withdraw()
-        if action == 'check':
-            if clicked < 10:
-                e.view_ads()
-            if e._buy_pack:
-                e.buy_pack()
-
-        if stayup:
-            e.time_macro()
+        if stay_up:
             loop_forever()
-
-
-def conda_main():
-    argh.dispatch_command(main)
-
 
 if __name__ == '__main__':
     argh.dispatch_command(main)
