@@ -52,7 +52,8 @@ action_path = dict(
     login='account/login',
     viewads='members/ads/rotator',
     dashboard='Dot_MembersPage.asp',
-    withdraw='DotwithdrawForm.asp'
+    withdraw='DotwithdrawForm.asp',
+    buy_pack='members/sales/packages'
 )
 
 one_minute = 60
@@ -194,10 +195,9 @@ class Entry(object):
         self.browser.find_by_name('username').type(self._username)
         self.browser.find_by_name('password').type(self._password)
 
-        print("Enter the CAPTCHA manually please")
-        wait_time = 10
-        for i in progress.bar(range(wait_time)):
-            time.sleep(1)
+        # wait_time = 10
+        # for i in progress.bar(range(wait_time)):
+        #     time.sleep(1)
 
         # captcha_elem = self.browser.find_by_id('captcha').first
         # captcha_file = 'captcha.png'
@@ -219,7 +219,7 @@ class Entry(object):
         except UnexpectedAlertPresentException:
             print("Caught UnexpectedAlertPresentException.")
             logging.warn("Attempting to dismiss alert")
-            alert = self.driver.switch_to_alert()
+            alert = self.browser.driver.switch_to_alert()
             alert.dismiss()
             return 254
         except WebDriverException:
@@ -241,6 +241,10 @@ class Entry(object):
         time.sleep(random.randrange(2, 5))
 
         image_to_match_elem = wait_visible(self.browser.driver, '//*[@id="view"]/table/tbody/tr/td[1]/img')
+        self.browser.driver.execute_script("arguments[0].setAttribute('style', '')", image_to_match_elem)
+        self.browser.driver.execute_script("arguments[0].setAttribute('width', '56')", image_to_match_elem)
+        self.browser.driver.execute_script("arguments[0].setAttribute('height', '40')", image_to_match_elem)
+
         candidate_images_elem = self.browser.find_by_xpath('//*[@id="view"]/table/tbody/tr/td[3]/img').first
 
         if not all([image_to_match_elem, candidate_images_elem]):
@@ -270,10 +274,14 @@ class Entry(object):
             time.sleep(1)
 
     def buy_pack(self):
-        self.calc_account_balance()
-        print("Balance: {}".format(self.account_balance))
-        if self.account_balance >= 49.99:
-            self.buy_pack_internal()
+        self.browser_visit('buy_pack')
+        self.browser.find_by_name('qty[18]').first.type("1")
+        self.browser.select('processor[18]', "4")  # Solid Trust Pay for the win
+        self.browser.execute_script("buy_sales_package(18)")
+        with self.browser.get_alert() as alert:
+            alert.accept()
+
+        loop_forever()
 
     def buy_pack_internal(self):
         a = self.browser.find_by_xpath(
@@ -338,13 +346,6 @@ class Entry(object):
         button.click()
 
 
-def main(conf, surf=False, buy_pack=False, stay_up=False, surf_amount=10):
-    config = ConfigParser.ConfigParser()
-    config.read(conf)
-    username = config.get('login', 'username')
-    password = config.get('login', 'password')
-
-
 def main(conf, surf=False, buy_pack=False, stay_up=False, surf_amount=20):
     config = ConfigParser.ConfigParser()
     config.read(conf)
@@ -359,8 +360,10 @@ def main(conf, surf=False, buy_pack=False, stay_up=False, surf_amount=20):
 
         if surf:
             e.view_ads(surf_amount)
+
         if buy_pack:
             e.buy_pack()
+
         if stay_up:
             loop_forever()
 
