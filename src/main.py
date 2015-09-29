@@ -36,6 +36,7 @@ import conf  # it is used. Even though flymake cant figure that out.
 import match_image4
 import smallcrop
 
+
 logging.basicConfig(
     format='%(lineno)s %(message)s',
     level=logging.WARN
@@ -149,7 +150,6 @@ def get_element_html(driver, elem):
 def echo_print(text, elem):
     print("{0}={1}.".format(text, elem))
 
-
 # https://stackoverflow.com/questions/10848900/how-to-take-partial-screenshot-frame-with-selenium-webdriver/26225137#26225137?newreg=8807b51813c4419abbb37ab2fe696b1a
 
 
@@ -210,6 +210,7 @@ class Entry(object):
         #     raw_data = inp.read()
         # print(solver.solve_captcha(raw_data))
 
+
     def browser_visit(self, action_label):
         try:
             logging.debug("Visiting URL for {0}".format(action_label))
@@ -218,15 +219,15 @@ class Entry(object):
         except UnexpectedAlertPresentException:
             print("Caught UnexpectedAlertPresentException.")
             logging.warn("Attempting to dismiss alert")
-            alert = self.browser.driver.switch_to_alert()
+            alert = self.driver.switch_to_alert()
             alert.dismiss()
             return 254
         except WebDriverException:
             print("Caught webdriver exception.")
             return 253
 
-    def view_ads(self, surf_amount):
-        for i in xrange(1, surf_amount + 1):
+    def view_ads(self):
+        for i in xrange(1, self._surf_amount + 1):
             while True:
                 print("Viewing ad {0}".format(i))
                 result = self.view_ad()
@@ -245,12 +246,6 @@ class Entry(object):
         if not all([image_to_match_elem, candidate_images_elem]):
             raise Exception("All required images not located")
 
-        self.browser.driver.execute_script("arguments[0].style = ''", image_to_match_elem)
-        self.browser.driver.execute_script("arguments[0].removeAttribute('width')", image_to_match_elem)
-        self.browser.driver.execute_script("arguments[0].height = '40'", image_to_match_elem)
-
-
-
         query_image = 'image_to_match.gif'
         element_screenshot(self.browser.driver, image_to_match_elem, query_image)
         element_screenshot(self.browser.driver, candidate_images_elem, 'candidate_images.gif')
@@ -267,15 +262,14 @@ class Entry(object):
         # x_offset = sectioned_image['offsets'][i]
         # candidate_images_elem.click()
         # click_element_with_offset(self.browser.driver, candidate_images_elem._element, x_offset+3, 3)
-        # urllib.urlretrieve(image_to_match_elem.__getattribute__('src'), 'image_to_match.gif')
-        # urllib.urlretrieve(candidate_images_elem.__getattribute__('src'), 'candidate_images_elem.gif')
-
         return 0
+
 
     def wait_on_ad(self):
         time_to_wait_on_ad = random.randrange(40, 50)
         for i in progress.bar(range(time_to_wait_on_ad)):
             time.sleep(1)
+
 
     def buy_pack(self):
         self.calc_account_balance()
@@ -296,6 +290,7 @@ class Entry(object):
         button = wait_visible(self.browser.driver, 'Preview', by=By.NAME)
         button.click()
 
+
     def calc_account_balance(self):
         time.sleep(1)
 
@@ -312,6 +307,7 @@ class Entry(object):
         self.account_balance = float(elem.text[1:])
 
         print("Available Account Balance: {}".format(self.account_balance))
+
 
     def calc_credit_packs(self):
         time.sleep(1)
@@ -345,6 +341,11 @@ class Entry(object):
         button = self.browser.find_by_name('Submit')
         button.click()
 
+def main(conf, surf=False, buy_pack=False, stay_up=False, surf_amount=10):
+    config = ConfigParser.ConfigParser()
+    config.read(conf)
+    username = config.get('login', 'username')
+    password = config.get('login', 'password')
 
 def main(conf, surf=False, buy_pack=False, stay_up=False, surf_amount=20):
     config = ConfigParser.ConfigParser()
