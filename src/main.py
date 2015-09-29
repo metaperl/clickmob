@@ -226,8 +226,8 @@ class Entry(object):
             print("Caught webdriver exception.")
             return 253
 
-    def view_ads(self):
-        for i in xrange(1, self._surf_amount + 1):
+    def view_ads(self, surf_amount):
+        for i in xrange(1, surf_amount + 1):
             while True:
                 print("Viewing ad {0}".format(i))
                 result = self.view_ad()
@@ -264,12 +264,10 @@ class Entry(object):
         # click_element_with_offset(self.browser.driver, candidate_images_elem._element, x_offset+3, 3)
         return 0
 
-
     def wait_on_ad(self):
         time_to_wait_on_ad = random.randrange(40, 50)
         for i in progress.bar(range(time_to_wait_on_ad)):
             time.sleep(1)
-
 
     def buy_pack(self):
         self.calc_account_balance()
@@ -290,7 +288,6 @@ class Entry(object):
         button = wait_visible(self.browser.driver, 'Preview', by=By.NAME)
         button.click()
 
-
     def calc_account_balance(self):
         time.sleep(1)
 
@@ -307,7 +304,6 @@ class Entry(object):
         self.account_balance = float(elem.text[1:])
 
         print("Available Account Balance: {}".format(self.account_balance))
-
 
     def calc_credit_packs(self):
         time.sleep(1)
@@ -341,11 +337,13 @@ class Entry(object):
         button = self.browser.find_by_name('Submit')
         button.click()
 
+
 def main(conf, surf=False, buy_pack=False, stay_up=False, surf_amount=10):
     config = ConfigParser.ConfigParser()
     config.read(conf)
     username = config.get('login', 'username')
     password = config.get('login', 'password')
+
 
 def main(conf, surf=False, buy_pack=False, stay_up=False, surf_amount=20):
     config = ConfigParser.ConfigParser()
