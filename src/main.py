@@ -3,26 +3,21 @@
 
 from __future__ import print_function
 
-# core
-from datetime import datetime, timedelta
+# Core
 from functools import wraps
 import logging
 import pprint
 import random
-import sys
 import time
-import urllib
 import ConfigParser
 
-
-# pypi
+# Third-Party
 import argh
 
 from clint.textui import progress
 import funcy
 from PIL import Image
 from splinter import Browser
-from selenium import webdriver
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.common.exceptions import \
     TimeoutException, UnexpectedAlertPresentException, WebDriverException
@@ -31,8 +26,7 @@ from selenium.webdriver.common.keys import Keys
 import selenium.webdriver.support.expected_conditions as EC
 import selenium.webdriver.support.ui as ui
 
-# local
-import conf  # it is used. Even though flymake cant figure that out.
+# Local
 import match_image4
 import smallcrop
 
@@ -238,7 +232,6 @@ class Entry(object):
     def view_ad(self):
         logging.warn("Visiting viewads")
         self.browser_visit('viewads')
-        time.sleep(random.randrange(2, 5))
 
         image_to_match_elem = wait_visible(self.browser.driver, '//*[@id="view"]/table/tbody/tr/td[1]/img')
         self.browser.driver.execute_script("arguments[0].setAttribute('style', '')", image_to_match_elem)
@@ -280,21 +273,6 @@ class Entry(object):
         self.browser.execute_script("buy_sales_package(18)")
         with self.browser.get_alert() as alert:
             alert.accept()
-
-        loop_forever()
-
-    def buy_pack_internal(self):
-        a = self.browser.find_by_xpath(
-            '//a[@href="Dot_CreditPack.asp"]'
-        )
-        print("A: {0}".format(a))
-        a.click()
-
-        button = wait_visible(self.browser.driver, 'Preview', by=By.NAME)
-        button.click()
-
-        button = wait_visible(self.browser.driver, 'Preview', by=By.NAME)
-        button.click()
 
     def calc_account_balance(self):
         time.sleep(1)
@@ -346,7 +324,7 @@ class Entry(object):
         button.click()
 
 
-def main(conf, surf=False, buy_pack=False, stay_up=False, surf_amount=20):
+def main(conf, surf=False, buy_pack=False, stay_up=False, surf_amount=10):
     config = ConfigParser.ConfigParser()
     config.read(conf)
     username = config.get('login', 'username')
@@ -358,11 +336,11 @@ def main(conf, surf=False, buy_pack=False, stay_up=False, surf_amount=20):
 
         e.login()
 
-        if surf:
-            e.view_ads(surf_amount)
-
         if buy_pack:
             e.buy_pack()
+
+        if surf:
+            e.view_ads(surf_amount)
 
         if stay_up:
             loop_forever()
