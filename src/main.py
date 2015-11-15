@@ -269,7 +269,8 @@ class Entry(object):
     def buy_pack(self):
         self.browser_visit('buy_pack')
         self.browser.find_by_name('qty[18]').first.type("1")
-        self.browser.select('processor[18]', "4")  # Solid Trust Pay for the win
+        self.browser.select('processor[18]', "2")  # STP=4, Payza=2
+        time.sleep(5)
         self.browser.execute_script("buy_sales_package(18)")
         with self.browser.get_alert() as alert:
             alert.accept()

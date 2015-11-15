@@ -1,0 +1,4 @@
+#!/bin/bash -x
+
+
+./main.py supreme.ini --buy-pack --surf --surf-amount 1 --stay-up
